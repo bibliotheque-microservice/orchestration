@@ -1,0 +1,49 @@
+services:
+  api-emprunts:
+    image: ghcr.io/bibliotheque-microservice/bibliotheque-microservice/emprunts:latest
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:${PORT}"
+    command: air ./cmd/ -b 0.0.0.0
+    depends_on:
+      emprunts-db: 
+        condition: service_started
+      rabbitmq :
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: 'rabbitmq-emprunts'
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER} 
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD}  
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - rabbitmq-log:/var/log/rabbitmq
+
+  emprunts-db:
+    image: postgres:alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - ./migrations/emprunts.sql:/docker-entrypoint-initdb.d/dump.sql
+      - postgres-db:/var/lib/postgresql/data
+
+volumes:
+  postgres-db:
+  rabbitmq-data:
+  rabbitmq-log:
+
