@@ -1,7 +1,6 @@
 services:
   api-emprunts:
-    build:
-      context: ./emprunts
+    image: ghcr.io/bibliotheque-microservice/bibliotheque-microservice/emprunts:latest
     env_file:
       - emprunts/env/.env
     ports:
@@ -24,7 +23,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
       PGPORT: ${DB_PORT}
     ports:
-      - 5432:5432
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - ./emprunts/migrations/emprunts.sql:/docker-entrypoint-initdb.d/dump.sql
       - postgres-db:/var/lib/postgresql/data
@@ -32,8 +31,7 @@ services:
       - app_network
 
   api_book:
-    build:
-      context: ./livres    
+    image: ghcr.io/bibliotheque-microservice/bibliotheque-microservice/livres:latest
     ports:
       - "3000:3000"  # Port pour exposer l'API Flask
     depends_on:
@@ -60,22 +58,11 @@ services:
     ports:
       - "3306:3306"
 
-  mariadb_db2:
-    image: mariadb:10.5
-    environment:
-      MYSQL_ROOT_PASSWORD: admin
-      MYSQL_USER: admin
-      MYSQL_PASSWORD: admin
-      MYSQL_DATABASE: name
-    ports:
-      - "3307:3306"
-
   api-users:
     container_name: api-utilisateurs
-    build:
-      context: ./utilisateurs    
+    image: ghcr.io/bibliotheque-microservice/bibliotheque-microservice/utilisateurs:latest
     env_file:
-      - ./utilisateurs/env/.env 
+      - ./utilisateur/env/.env 
     environment:
       - FLASK_APP=app.py
       - FLASK_DEBUG=1 
@@ -85,7 +72,7 @@ services:
     ports:
       - "5000:5000"  
     depends_on:
-      mariadb_db2:
+      db:
         condition: service_started 
       rabbitmq:
         condition: service_healthy  
@@ -96,14 +83,14 @@ services:
   db:
     image: postgres:alpine
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: name
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - ./migrations/dump.sql:/docker-entrypoint-initdb.d/dump.sql
-      - postgres_db:/var/lib/postgresql/data
+      - postgres-db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
       interval: 10s
@@ -114,7 +101,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: 'rabbitmq-users'
+    container_name: 'rabbitmq'
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
@@ -136,7 +123,6 @@ services:
 volumes:
   mariadb_db:
   postgres-db:
-  postgres_db:
   rabbitmq-data:
   rabbitmq-log:
 
